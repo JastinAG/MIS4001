@@ -59,7 +59,7 @@ function DashboardContent() {
       case 'admission':
         return selectedCourse ? (
           <AdmissionLetterView 
-            studentName={user?.email?.split('@')[0] || 'Student Name'} 
+            studentName={user?.email?.split('@')[0] || 'Wanjiku Kamau'} 
             course={selectedCourse.course}
             university={selectedCourse.university}
             date={new Date().toLocaleDateString()}
@@ -74,9 +74,9 @@ function DashboardContent() {
       case 'overview':
       default:
         return (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div className="glass-panel p-6 rounded-xl">
                 <div className="flex flex-col gap-1">
                   <span className="text-sm font-medium text-slate-500">Placement Status</span>
@@ -136,10 +136,10 @@ function DashboardContent() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Student Dashboard</h1>
-        <p className="text-slate-500">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Student Dashboard</h1>
+        <p className="text-sm sm:text-base text-slate-500">
           Manage your placement journey, view grades, and select courses.
         </p>
       </div>

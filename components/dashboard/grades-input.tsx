@@ -62,24 +62,24 @@ export default function GradesInput({ onComplete }: GradesInputProps) {
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Enter Your KCSE Grades</CardTitle>
-        <CardDescription>
+      <CardHeader className="px-4 sm:px-6">
+        <CardTitle className="text-lg sm:text-xl">Enter Your KCSE Grades</CardTitle>
+        <CardDescription className="text-sm">
           Input your grades for each subject to calculate your cluster points and see eligible courses.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {entries.map((entry, index) => (
-            <div key={index} className="flex gap-2 items-end p-3 border rounded-lg bg-slate-50">
-              <div className="flex-1 space-y-2">
-                <Label>Subject {index + 1}</Label>
+            <div key={index} className="flex flex-col sm:flex-row gap-2 sm:items-end p-3 border rounded-lg bg-slate-50">
+              <div className="flex-1 space-y-2 min-w-0">
+                <Label className="text-xs sm:text-sm">Subject {index + 1}</Label>
                 <Select 
                   value={entry.subject || undefined} 
                   onValueChange={(val) => updateEntry(index, 'subject', val)}
                   disabled={index < 3} // Compulsory subjects locked
                 >
-                  <SelectTrigger className="w-full bg-white">
+                  <SelectTrigger className="w-full bg-white text-sm">
                     <SelectValue placeholder="Select Subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -96,13 +96,13 @@ export default function GradesInput({ onComplete }: GradesInputProps) {
                 </Select>
               </div>
               
-              <div className="w-24 space-y-2">
-                <Label>Grade</Label>
+              <div className="w-full sm:w-24 space-y-2">
+                <Label className="text-xs sm:text-sm">Grade</Label>
                 <Select 
                   value={entry.score || undefined} 
                   onValueChange={(val) => updateEntry(index, 'score', val)}
                 >
-                  <SelectTrigger className="w-full bg-white">
+                  <SelectTrigger className="w-full bg-white text-sm">
                     <SelectValue placeholder="-" />
                   </SelectTrigger>
                   <SelectContent>
@@ -117,7 +117,7 @@ export default function GradesInput({ onComplete }: GradesInputProps) {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50 self-end sm:self-auto"
                   onClick={() => removeEntry(index)}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -127,12 +127,12 @@ export default function GradesInput({ onComplete }: GradesInputProps) {
           ))}
         </div>
 
-        <div className="flex justify-between items-center pt-4">
-          <Button variant="outline" onClick={addEntry} disabled={entries.length >= 12}>
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-4">
+          <Button variant="outline" onClick={addEntry} disabled={entries.length >= 12} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add Subject
           </Button>
           
-          <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-8">
+          <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white px-6 sm:px-8 w-full sm:w-auto">
             Calculate Points & Proceed
           </Button>
         </div>
