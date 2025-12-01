@@ -24,17 +24,9 @@ CREATE TABLE student_clusters (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
   subject VARCHAR(100) NOT NULL,
-  score INTEGER NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Student preferences
-CREATE TABLE student_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  preference_order INTEGER NOT NULL,
-  course_id UUID NOT NULL REFERENCES courses(id),
-  created_at TIMESTAMP DEFAULT NOW()
+  grade VARCHAR(5) NOT NULL CHECK (grade IN ('A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'E')),
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(student_id, subject)
 );
 
 -- Universities table
@@ -52,6 +44,15 @@ CREATE TABLE courses (
   name VARCHAR(255) NOT NULL,
   min_cluster_score DECIMAL(5, 2) NOT NULL,
   intake_capacity INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Student preferences (depends on courses, so defined after)
+CREATE TABLE student_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  preference_order INTEGER NOT NULL,
+  course_id UUID NOT NULL REFERENCES courses(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
 

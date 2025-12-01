@@ -5,8 +5,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 interface Stats {
   totalStudents: number
   placed: number
-  rejected: number
-  pending: number
   universities: number
   courses: number
 }
@@ -19,14 +17,9 @@ export default function AdminAnalyticsCard({ stats }: { stats: Stats }) {
       fill: '#10b981',
     },
     {
-      name: 'Rejected',
-      value: stats.rejected,
-      fill: '#ef4444',
-    },
-    {
-      name: 'Pending',
-      value: stats.pending,
-      fill: '#f59e0b',
+      name: 'Not Placed',
+      value: Math.max(stats.totalStudents - stats.placed, 0),
+      fill: '#e5e7eb',
     },
   ]
 

@@ -3,20 +3,47 @@
 import { useAuth } from '@/contexts/auth-context'
 import { useStudent } from '@/contexts/student-context'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import GradesInput from '@/components/dashboard/grades-input'
+import StudentDataLoader from '@/components/dashboard/student-data-loader'
 import CourseSelection from '@/components/dashboard/course-selection'
 import AdmissionLetterView from '@/components/dashboard/admission-letter-view'
 import { Button } from '@/components/ui/button'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { Suspense } from 'react'
+import { Suspense, useState, useEffect } from 'react'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 function DashboardContent() {
   const { user } = useAuth()
   const { grades, clusterPoints, selectedCourse, updateGrades, selectCourse } = useStudent()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const [studentName, setStudentName] = useState<string>('')
+  const [kcseIndex, setKcseIndex] = useState<string>('')
   
   const activeTab = searchParams.get('view') || 'overview'
+
+  useEffect(() => {
+    if (user?.id) {
+      loadStudentInfo()
+    }
+  }, [user])
+
+  const loadStudentInfo = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase
+        .from('students')
+        .select('full_name, kcse_index_number')
+        .eq('id', user!.id)
+        .single()
+
+      if (data) {
+        setStudentName(data.full_name)
+        setKcseIndex(data.kcse_index_number)
+      }
+    } catch (error) {
+      console.error('Error loading student info:', error)
+    }
+  }
   
   // Mock data for the chart
   const performanceData = grades.length > 0 
@@ -28,11 +55,6 @@ function DashboardContent() {
     return points[grade] || 0
   }
 
-  const handleGradesComplete = (score: number, submittedGrades: Array<{ subject: string; score: string }>) => {
-    updateGrades(score, submittedGrades)
-    router.push('/dashboard?view=courses')
-  }
-
   const handleCourseSelected = (course: any) => {
     selectCourse(course)
     router.push('/dashboard?view=admission')
@@ -40,9 +62,6 @@ function DashboardContent() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'grades':
-        return <GradesInput onComplete={handleGradesComplete} />
-      
       case 'courses':
         return clusterPoints ? (
           <CourseSelection 
@@ -59,15 +78,16 @@ function DashboardContent() {
       case 'admission':
         return selectedCourse ? (
           <AdmissionLetterView 
-            studentName={user?.email?.split('@')[0] || 'Wanjiku Kamau'} 
+            studentName={studentName || user?.email?.split('@')[0] || 'Student'} 
             course={selectedCourse.course}
             university={selectedCourse.university}
             date={new Date().toLocaleDateString()}
-            kcseIndex="12345678001" // Mock index
+            kcseIndex={kcseIndex || 'N/A'}
           />
         ) : (
           <div className="text-center py-12">
             <p className="text-slate-500">Please select a course first to generate your admission letter.</p>
+            <Button variant="link" onClick={() => router.push('/dashboard?view=courses')}>View Courses</Button>
           </div>
         )
 
@@ -143,6 +163,8 @@ function DashboardContent() {
           Manage your placement journey, view grades, and select courses.
         </p>
       </div>
+
+      <StudentDataLoader />
 
       {renderContent()}
     </div>

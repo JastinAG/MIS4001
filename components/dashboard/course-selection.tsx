@@ -1,94 +1,20 @@
-'use client'
+ 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, School, BookOpen, ArrowRight } from 'lucide-react'
+import { CheckCircle, School, BookOpen, ArrowRight, Sparkles } from 'lucide-react'
+import { getTopRecommendations } from '@/utils/course-recommendations'
 
-// Mock Data for Universities and Courses
-const MOCK_COURSES = [
-  {
-    id: 1,
-    university: 'University of Nairobi',
-    course: 'Bachelor of Science in Computer Science',
-    min_points: 42,
-    capacity: 50,
-    location: 'Nairobi'
-  },
-  {
-    id: 2,
-    university: 'Jomo Kenyatta University of Agriculture and Technology',
-    course: 'Bachelor of Science in Information Technology',
-    min_points: 38,
-    capacity: 80,
-    location: 'Juja'
-  },
-  {
-    id: 3,
-    university: 'Kenyatta University',
-    course: 'Bachelor of Education (Science)',
-    min_points: 35,
-    capacity: 120,
-    location: 'Nairobi'
-  },
-  {
-    id: 4,
-    university: 'Strathmore University',
-    course: 'Bachelor of Business Information Technology',
-    min_points: 40,
-    capacity: 60,
-    location: 'Nairobi'
-  },
-  {
-    id: 5,
-    university: 'Moi University',
-    course: 'Bachelor of Medicine and Surgery',
-    min_points: 44,
-    capacity: 40,
-    location: 'Eldoret'
-  },
-  {
-    id: 6,
-    university: 'Egerton University',
-    course: 'Bachelor of Science in Agriculture',
-    min_points: 30,
-    capacity: 100,
-    location: 'Njoro'
-  },
-  {
-    id: 7,
-    university: 'Technical University of Kenya',
-    course: 'Bachelor of Engineering (Electrical)',
-    min_points: 41,
-    capacity: 45,
-    location: 'Nairobi'
-  },
-  {
-    id: 8,
-    university: 'Daystar University',
-    course: 'Bachelor of Arts in Communication',
-    min_points: 36,
-    capacity: 70,
-    location: 'Nairobi'
-  },
-  {
-    id: 9,
-    university: 'Daystar University',
-    course: 'Bachelor of Business Administration',
-    min_points: 38,
-    capacity: 85,
-    location: 'Nairobi'
-  },
-  {
-    id: 10,
-    university: 'Daystar University',
-    course: 'Bachelor of Science in Information Technology',
-    min_points: 37,
-    capacity: 60,
-    location: 'Nairobi'
-  }
-]
+interface Course {
+  id: string
+  university: string
+  course: string
+  min_points: number
+  capacity: number
+  location: string
+}
 
 interface CourseSelectionProps {
   clusterPoints: number
@@ -96,21 +22,95 @@ interface CourseSelectionProps {
 }
 
 export default function CourseSelection({ clusterPoints, onSelectCourse }: CourseSelectionProps) {
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [isShortlisting, setIsShortlisting] = useState(false)
+  const [courses, setCourses] = useState<Course[]>([])
+  const [loading, setLoading] = useState(true)
+  const [recommendedCourses, setRecommendedCourses] = useState<Course[]>([])
+
+  useEffect(() => {
+    loadCourses()
+  }, [])
+
+  useEffect(() => {
+    if (courses.length > 0 && clusterPoints) {
+      const recommended = getTopRecommendations(clusterPoints, courses, 10)
+      setRecommendedCourses(recommended)
+    }
+  }, [courses, clusterPoints])
+
+  const loadCourses = () => {
+    setLoading(true)
+
+    const mockCourses: Course[] = [
+      {
+        id: '1',
+        university: 'University of Nairobi',
+        course: 'Bachelor of Science in Computer Science',
+        min_points: 42,
+        capacity: 50,
+        location: 'Nairobi',
+      },
+      {
+        id: '2',
+        university: 'Daystar University',
+        course: 'Bachelor of Arts in Communication',
+        min_points: 36,
+        capacity: 70,
+        location: 'Nairobi',
+      },
+      {
+        id: '3',
+        university: 'Daystar University',
+        course: 'Bachelor of Business Administration',
+        min_points: 38,
+        capacity: 85,
+        location: 'Nairobi',
+      },
+      {
+        id: '4',
+        university: 'Kenyatta University',
+        course: 'Bachelor of Education (Science)',
+        min_points: 35,
+        capacity: 120,
+        location: 'Nairobi',
+      },
+      {
+        id: '5',
+        university: 'Technical University of Kenya',
+        course: 'Bachelor of Engineering (Electrical)',
+        min_points: 41,
+        capacity: 45,
+        location: 'Nairobi',
+      },
+    ]
+
+    setCourses(mockCourses)
+    setLoading(false)
+  }
 
   // Filter courses based on cluster points
-  const eligibleCourses = MOCK_COURSES.filter(c => clusterPoints >= c.min_points)
+  const eligibleCourses = recommendedCourses.length > 0 
+    ? recommendedCourses 
+    : courses.filter(c => clusterPoints >= c.min_points)
 
   const handleApply = (course: any) => {
     setSelectedCourseId(course.id)
     setIsShortlisting(true)
-    
-    // Simulate shortlisting process
+
     setTimeout(() => {
       setIsShortlisting(false)
       onSelectCourse(course)
-    }, 2000)
+    }, 1000)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        <h3 className="text-xl font-semibold text-slate-900">Loading Courses...</h3>
+      </div>
+    )
   }
 
   if (isShortlisting) {
@@ -130,23 +130,35 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
         <div className="min-w-0">
           <h4 className="font-semibold text-sm sm:text-base text-blue-900">You have {clusterPoints.toFixed(1)} Cluster Points</h4>
           <p className="text-xs sm:text-sm text-blue-700 mt-1">
-            Based on your performance, you are eligible for {eligibleCourses.length} courses.
-            Select a course below to apply for placement.
+            Based on your performance, we've found {eligibleCourses.length} recommended courses.
+            {recommendedCourses.length > 0 && (
+              <span className="block mt-1 flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Top recommendations are shown first.
+              </span>
+            )}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        {eligibleCourses.map((course) => (
-          <Card key={course.id} className={`transition-all hover:shadow-md ${selectedCourseId === course.id ? 'ring-2 ring-blue-500' : ''}`}>
+        {eligibleCourses.map((course, index) => (
+          <Card key={course.id} className={`transition-all hover:shadow-md ${selectedCourseId === course.id ? 'ring-2 ring-blue-500' : ''} ${index < 3 ? 'border-2 border-blue-200' : ''}`}>
             <CardHeader className="pb-2 sm:pb-3">
               <div className="flex flex-wrap justify-between items-start gap-2 mb-2">
                 <Badge variant="outline" className="bg-slate-50 text-slate-600 text-xs">
                   {course.location}
                 </Badge>
-                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 text-xs">
-                  Eligible
-                </Badge>
+                <div className="flex gap-1">
+                  {index < 3 && (
+                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200 text-xs">
+                      <Sparkles className="h-3 w-3 mr-1" /> Recommended
+                    </Badge>
+                  )}
+                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 text-xs">
+                    Eligible
+                  </Badge>
+                </div>
               </div>
               <CardTitle className="text-base sm:text-lg font-bold text-slate-900 line-clamp-2 break-words">
                 {course.course}

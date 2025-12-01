@@ -3,14 +3,16 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 export default function LoginForm() {
   const router = useRouter()
-  const { signIn, userRole } = useAuth()
+  const { signIn } = useAuth()
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    role: 'student' as 'student' | 'admin',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -22,8 +24,9 @@ export default function LoginForm() {
 
     try {
       setLoading(true)
-      await signIn(formData.email, formData.password)
-      router.push(userRole === 'admin' ? '/admin' : '/dashboard')
+      await signIn(formData.email, formData.password, formData.role)
+      router.push(formData.role === 'admin' ? '/admin' : '/dashboard')
+      router.refresh()
     } catch (error: any) {
       setErrors({ submit: error.message || 'Login failed' })
     } finally {
@@ -38,6 +41,25 @@ export default function LoginForm() {
           {errors.submit}
         </div>
       )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Login As
+        </label>
+        <Select
+          value={formData.role}
+          onValueChange={(value: 'student' | 'admin') => setFormData({ ...formData, role: value })}
+          disabled={loading}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="student">Student</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">

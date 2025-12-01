@@ -63,12 +63,6 @@ export default function AdminLayout({
             >
               Universities & Courses
             </Link>
-            <Link
-              href="/admin/placement"
-              className="block px-4 py-3 rounded hover:bg-gray-800 transition"
-            >
-              Placement Management
-            </Link>
           </nav>
 
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-800 w-64">

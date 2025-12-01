@@ -1,14 +1,14 @@
 'use client'
 
 import React, { createContext, useContext, useState } from 'react'
-import { User } from '@supabase/supabase-js'
+import type { User } from '@supabase/supabase-js'
 
 interface AuthContextType {
   user: User | null
   loading: boolean
   userRole: 'student' | 'admin' | null
   signUp: (email: string, password: string) => Promise<void>
-  signIn: (email: string, password: string) => Promise<void>
+  signIn: (email: string, password: string, role?: 'student' | 'admin') => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -17,13 +17,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userRole, setUserRole] = useState<'student' | 'admin' | null>(null)
-  const [loading, setLoading] = useState(false) // Set loading to false initially
+  const [loading] = useState(false)
 
   const createMockUser = (email: string): User => ({
-    id: `user-${Date.now()}`,
+    id: `mock-${Date.now()}`,
     aud: 'authenticated',
     role: 'authenticated',
-    email: email,
+    email,
     email_confirmed_at: new Date().toISOString(),
     phone: '',
     confirmation_sent_at: null,
@@ -40,20 +40,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     is_anonymous: false,
   })
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, _password: string) => {
+    // Allow instant signup with any credentials (mock mode)
     const mockUser = createMockUser(email)
     setUser(mockUser)
     setUserRole('student')
   }
 
-  const signIn = async (email: string, password: string) => {
-    if (!email || !password) {
-      throw new Error('Email and password are required')
-    }
-
+  const signIn = async (
+    email: string,
+    _password: string,
+    role: 'student' | 'admin' = 'student',
+  ) => {
+    // Allow instant login with any credentials and chosen role
     const mockUser = createMockUser(email)
     setUser(mockUser)
-    setUserRole('student')
+    setUserRole(role)
   }
 
   const signOut = async () => {
@@ -75,3 +77,4 @@ export function useAuth() {
   }
   return context
 }
+
