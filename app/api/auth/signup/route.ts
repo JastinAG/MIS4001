@@ -5,12 +5,9 @@ import { calculateClusterScore } from '@/utils/grade-calculator'
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xybnqhsqlaaocqibqhbn.supabase.co'
 
-// Try multiple ways to get the service role key
-const SERVICE_ROLE_KEY = 
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 
-  process.env.SUPABASE_KEY ||
-  // Temporary fallback - REMOVE BEFORE PRODUCTION
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5Ym5xaHNxbGFhb2NxaWJxaGJuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDQ2NTExOCwiZXhwIjoyMDgwMDQxMTE4fQ.x6nE8dxJ2KsmDllZxHlq_A_yfk_pKmtg0jgpSj2IiZU'
+// Get service role key from environment variables only
+// Must be set in .env.local for local development or environment variables for production
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
 
 // Debug logging (remove in production)
 if (process.env.NODE_ENV === 'development') {
