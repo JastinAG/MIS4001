@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import AdminAnalyticsCard from '@/components/admin/admin-analytics-card'
 import AdminQuickStats from '@/components/admin/admin-quick-stats'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 interface UniversityStats {
   university: string
@@ -12,26 +13,92 @@ interface UniversityStats {
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({
-    totalStudents: 10,
-    placed: 7,
-    universities: 4,
-    courses: 12,
+    totalStudents: 0,
+    placed: 0,
+    universities: 0,
+    courses: 0,
   })
   const [universityStats, setUniversityStats] = useState<UniversityStats[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simulate loading and then show mock data
-    setTimeout(() => {
-      setUniversityStats([
-        { university: 'University of Nairobi', placed: 3, total: 4 },
-        { university: 'Daystar University', placed: 2, total: 3 },
-        { university: 'Kenyatta University', placed: 1, total: 2 },
-        { university: 'Technical University of Kenya', placed: 1, total: 1 },
-      ])
-      setLoading(false)
-    }, 500)
+    fetchStats()
   }, [])
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
+
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('placement_status')
+
+      if (studentsError) throw studentsError
+
+      const totalStudents = students?.length || 0
+      const placed = students?.filter((s) => s.placement_status === 'placed').length || 0
+
+      const { count: universityCount, error: univError } = await supabase
+        .from('universities')
+        .select('id', { count: 'exact', head: true })
+
+      if (univError) throw univError
+
+      const { count: coursesCount, error: coursesError } = await supabase
+        .from('courses')
+        .select('id', { count: 'exact', head: true })
+
+      if (coursesError) throw coursesError
+
+      const { data: placements, error: placementsError } = await supabase
+        .from('placements')
+        .select(
+          `
+          status,
+          universities (
+            name
+          )
+        `,
+        )
+
+      if (placementsError) throw placementsError
+
+      const univStatsMap = new Map<string, { placed: number; total: number }>()
+
+      placements?.forEach((placement: any) => {
+        const universityName = placement.universities?.name || 'Unknown'
+        if (!univStatsMap.has(universityName)) {
+          univStatsMap.set(universityName, { placed: 0, total: 0 })
+        }
+        const stats = univStatsMap.get(universityName)!
+        stats.total += 1
+        if (placement.status === 'accepted' || placement.status === 'placed') {
+          stats.placed += 1
+        }
+      })
+
+      const formattedStats: UniversityStats[] = Array.from(univStatsMap.entries()).map(
+        ([university, values]) => ({
+          university,
+          placed: values.placed,
+          total: values.total,
+        }),
+      )
+
+      setStats({
+        totalStudents,
+        placed,
+        universities: universityCount || 0,
+        courses: coursesCount || 0,
+      })
+      setUniversityStats(formattedStats)
+    } catch (error) {
+      console.error('Error fetching admin stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (

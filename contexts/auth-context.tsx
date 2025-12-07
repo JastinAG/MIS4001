@@ -1,7 +1,8 @@
 'use client'
 
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { User } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 interface AuthContextType {
   user: User | null
@@ -17,48 +18,149 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [userRole, setUserRole] = useState<'student' | 'admin' | null>(null)
-  const [loading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const createMockUser = (email: string): User => ({
-    id: `mock-${Date.now()}`,
-    aud: 'authenticated',
-    role: 'authenticated',
-    email,
-    email_confirmed_at: new Date().toISOString(),
-    phone: '',
-    confirmation_sent_at: null,
-    confirmed_at: new Date().toISOString(),
-    last_sign_in_at: new Date().toISOString(),
-    app_metadata: {
-      provider: 'email',
-      providers: ['email'],
-    },
-    user_metadata: {},
-    identities: [],
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    is_anonymous: false,
-  })
+  const fetchUserRole = useCallback(async (userId: string) => {
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.from('users').select('role').eq('id', userId).single()
 
-  const signUp = async (email: string, _password: string) => {
-    // Allow instant signup with any credentials (mock mode)
-    const mockUser = createMockUser(email)
-    setUser(mockUser)
-    setUserRole('student')
+      if (error) {
+        console.error('Error fetching user role:', error)
+        setUserRole('student')
+        return 'student'
+      } else if (data) {
+        const role = data.role as 'student' | 'admin'
+        setUserRole(role)
+        return role
+      } else {
+        setUserRole('student')
+        return 'student'
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error)
+      setUserRole('student')
+      return 'student'
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    let subscription: { unsubscribe: () => void } | null = null
+
+    const initializeAuth = async () => {
+      try {
+        const supabase = getSupabaseClient()
+
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Error getting session:', sessionError)
+          if (mounted) setLoading(false)
+          return
+        }
+
+        if (session?.user && mounted) {
+          setUser(session.user)
+          await fetchUserRole(session.user.id)
+        } else if (mounted) {
+          setLoading(false)
+        }
+
+        const {
+          data: { subscription: authSubscription },
+        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          if (!mounted) return
+
+          if (session?.user) {
+            setUser(session.user)
+            await fetchUserRole(session.user.id)
+          } else {
+            setUser(null)
+            setUserRole(null)
+            setLoading(false)
+          }
+        })
+
+        subscription = authSubscription
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        if (mounted) setLoading(false)
+      }
+    }
+
+    initializeAuth()
+    
+    return () => {
+      mounted = false
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
+  }, [fetchUserRole])
+
+  const signUp = async (email: string, password: string) => {
+    const response = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const data = await response.json()
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to sign up.')
+    }
+
+    const supabase = getSupabaseClient()
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      throw error
+    }
   }
 
   const signIn = async (
     email: string,
-    _password: string,
+    password: string,
     role: 'student' | 'admin' = 'student',
   ) => {
-    // Allow instant login with any credentials and chosen role
-    const mockUser = createMockUser(email)
-    setUser(mockUser)
-    setUserRole(role)
+    if (!email || !password) {
+      throw new Error('Email and password are required')
+    }
+
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      throw error
+    }
+
+    if (data.user) {
+      const resolvedRole = await fetchUserRole(data.user.id)
+      if (resolvedRole && resolvedRole !== role) {
+        await supabase.auth.signOut()
+        setUser(null)
+        setUserRole(null)
+        throw new Error(
+          `Access denied. This account is registered as ${resolvedRole}, not ${role}.`,
+        )
+      }
+    }
   }
 
   const signOut = async () => {
+    const supabase = getSupabaseClient()
+    await supabase.auth.signOut()
     setUser(null)
     setUserRole(null)
   }
@@ -77,4 +179,5 @@ export function useAuth() {
   }
   return context
 }
+
 

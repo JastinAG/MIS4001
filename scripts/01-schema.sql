@@ -88,6 +88,30 @@ ALTER TABLE student_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE placements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admission_letters ENABLE ROW LEVEL SECURITY;
 
+-- RLS Policies for users (fixed to avoid recursion)
+-- Users can read their own record (no recursion)
+CREATE POLICY "Users can read own record" ON users
+  FOR SELECT USING (auth.uid() = id);
+
+-- Create helper function to check admin role (avoids recursion)
+CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM users 
+    WHERE users.id = user_id 
+    AND users.role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Admins can read all users (using function to avoid recursion)
+CREATE POLICY "Admins can read all users" ON users
+  FOR SELECT USING (auth.uid() = id OR is_admin(auth.uid()));
+
+CREATE POLICY "Service role can insert users" ON users
+  FOR INSERT WITH CHECK (true);
+
 -- RLS Policies for students (can only see their own data)
 CREATE POLICY "Students can read own data" ON students
   FOR SELECT USING (auth.uid() = id OR EXISTS (
@@ -97,11 +121,69 @@ CREATE POLICY "Students can read own data" ON students
 CREATE POLICY "Students can update own data" ON students
   FOR UPDATE USING (auth.uid() = id);
 
+CREATE POLICY "Service role can insert students" ON students
+  FOR INSERT WITH CHECK (true);
+
+-- RLS Policies for student_clusters
+CREATE POLICY "Students can read own grades" ON student_clusters
+  FOR SELECT USING (
+    student_id = auth.uid() OR EXISTS (
+      SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+    )
+  );
+
+CREATE POLICY "Service role can insert grades" ON student_clusters
+  FOR INSERT WITH CHECK (true);
+
+-- RLS Policies for universities (public read, admin write)
+CREATE POLICY "Anyone can read universities" ON universities
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins can insert universities" ON universities
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+CREATE POLICY "Admins can update universities" ON universities
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+-- RLS Policies for courses (public read, admin write)
+CREATE POLICY "Anyone can read courses" ON courses
+  FOR SELECT USING (true);
+
+CREATE POLICY "Admins can insert courses" ON courses
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+CREATE POLICY "Admins can update courses" ON courses
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
+
+-- RLS Policies for student_preferences
+CREATE POLICY "Students can read own preferences" ON student_preferences
+  FOR SELECT USING (
+    student_id = auth.uid() OR EXISTS (
+      SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
+    )
+  );
+
+CREATE POLICY "Students can insert own preferences" ON student_preferences
+  FOR INSERT WITH CHECK (student_id = auth.uid());
+
 -- RLS Policies for placements
 CREATE POLICY "Students can read own placements" ON placements
   FOR SELECT USING (student_id = auth.uid() OR EXISTS (
     SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
   ));
+
+CREATE POLICY "Admins can insert placements" ON placements
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+  );
 
 -- RLS Policies for admission letters
 CREATE POLICY "Students can read own letters" ON admission_letters

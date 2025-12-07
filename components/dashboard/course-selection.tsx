@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, School, BookOpen, ArrowRight, Sparkles } from 'lucide-react'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import { getTopRecommendations } from '@/utils/course-recommendations'
 
 interface Course {
@@ -39,54 +40,45 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
     }
   }, [courses, clusterPoints])
 
-  const loadCourses = () => {
-    setLoading(true)
+  const loadCourses = async () => {
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
 
-    const mockCourses: Course[] = [
-      {
-        id: '1',
-        university: 'University of Nairobi',
-        course: 'Bachelor of Science in Computer Science',
-        min_points: 42,
-        capacity: 50,
-        location: 'Nairobi',
-      },
-      {
-        id: '2',
-        university: 'Daystar University',
-        course: 'Bachelor of Arts in Communication',
-        min_points: 36,
-        capacity: 70,
-        location: 'Nairobi',
-      },
-      {
-        id: '3',
-        university: 'Daystar University',
-        course: 'Bachelor of Business Administration',
-        min_points: 38,
-        capacity: 85,
-        location: 'Nairobi',
-      },
-      {
-        id: '4',
-        university: 'Kenyatta University',
-        course: 'Bachelor of Education (Science)',
-        min_points: 35,
-        capacity: 120,
-        location: 'Nairobi',
-      },
-      {
-        id: '5',
-        university: 'Technical University of Kenya',
-        course: 'Bachelor of Engineering (Electrical)',
-        min_points: 41,
-        capacity: 45,
-        location: 'Nairobi',
-      },
-    ]
+      const { data, error } = await supabase
+        .from('courses')
+        .select(
+          `
+          id,
+          name,
+          min_cluster_score,
+          intake_capacity,
+          universities (
+            name,
+            code
+          )
+        `,
+        )
+        .order('name')
 
-    setCourses(mockCourses)
-    setLoading(false)
+      if (error) throw error
+
+      const formattedCourses: Course[] = (data || []).map((course) => ({
+        id: course.id,
+        university: course.universities?.name || 'Unknown University',
+        course: course.name,
+        min_points: Number(course.min_cluster_score),
+        capacity: course.intake_capacity,
+        location: 'Nairobi',
+      }))
+
+      setCourses(formattedCourses)
+    } catch (error) {
+      console.error('Error loading courses:', error)
+      setCourses([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Filter courses based on cluster points
@@ -101,7 +93,7 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
     setTimeout(() => {
       setIsShortlisting(false)
       onSelectCourse(course)
-    }, 1000)
+    }, 1500)
   }
 
   if (loading) {

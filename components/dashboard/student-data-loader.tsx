@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { useStudent } from '@/contexts/student-context'
-import { calculateClusterScore } from '@/utils/grade-calculator'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { CheckCircle, AlertCircle } from 'lucide-react'
 
 interface StudentData {
   full_name: string
@@ -19,52 +20,65 @@ export default function StudentDataLoader() {
   const { updateGrades } = useStudent()
   const [loading, setLoading] = useState(true)
   const [studentData, setStudentData] = useState<StudentData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
       loadStudentData()
     } else {
       setLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const loadStudentData = () => {
-    setLoading(true)
+  const loadStudentData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const supabase = getSupabaseClient()
 
-    const emailPrefix = user?.email?.split('@')[0] || 'student'
+      const { data: student, error: studentError } = await supabase
+        .from('students')
+        .select('full_name, kcse_index_number, cluster_score')
+        .eq('id', user!.id)
+        .single()
 
-    // Derive a readable full name from the email prefix
-    const derivedName = emailPrefix
-      .split(/[._-]+/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-      .join(' ')
+      if (studentError || !student) {
+        throw new Error(
+          'We could not find your academic record. Please contact support or try again later.',
+        )
+      }
 
-    const fullName = derivedName || 'Student'
+      const { data: grades, error: gradesError } = await supabase
+        .from('student_clusters')
+        .select('subject, grade')
+        .eq('student_id', user!.id)
+        .order('subject', { ascending: true })
 
-    const grades: Array<{ subject: string; score: string }> = [
-      { subject: 'Mathematics', score: 'A' },
-      { subject: 'English', score: 'B+' },
-      { subject: 'Kiswahili', score: 'B' },
-      { subject: 'Chemistry', score: 'A-' },
-      { subject: 'Biology', score: 'B+' },
-      { subject: 'Physics', score: 'B' },
-      { subject: 'History', score: 'C+' },
-    ]
+      if (gradesError || !grades || grades.length === 0) {
+        throw new Error('No subject grades found for this account.')
+      }
 
-    const clusterScore = calculateClusterScore(grades)
+      const formattedGrades = grades.map((g) => ({
+        subject: g.subject,
+        score: g.grade,
+      }))
 
-    const data: StudentData = {
-      full_name: fullName,
-      kcse_index_number: '12345678001',
-      cluster_score: clusterScore,
-      grades,
+      setStudentData({
+        full_name: student.full_name,
+        kcse_index_number: student.kcse_index_number,
+        cluster_score: student.cluster_score,
+        grades: formattedGrades,
+      })
+
+      if (student.cluster_score) {
+        updateGrades(student.cluster_score, formattedGrades)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load student data. Please try again.')
+      setStudentData(null)
+    } finally {
+      setLoading(false)
     }
-
-    setStudentData(data)
-    updateGrades(clusterScore, grades)
-    setLoading(false)
   }
 
   if (loading) {
@@ -75,6 +89,25 @@ export default function StudentDataLoader() {
             <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
             <p className="text-slate-600">Loading your data...</p>
           </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="p-6 space-y-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-900 mb-1">Student data unavailable</h3>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={loadStudentData}>
+            Retry
+          </Button>
         </CardContent>
       </Card>
     )
