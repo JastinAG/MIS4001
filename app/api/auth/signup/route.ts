@@ -129,11 +129,20 @@ export async function POST(request: Request) {
       })),
     })
     
+    // Determine if we're in production (Vercel/Netlify) or development
+    const isProduction = process.env.VERCEL || process.env.NETLIFY || process.env.NODE_ENV === 'production'
+    const platform = process.env.VERCEL ? 'Vercel' : process.env.NETLIFY ? 'Netlify' : 'Local'
+    
     return NextResponse.json(
       {
-        error:
-          'Supabase service role key is not configured. Set SUPABASE_SERVICE_ROLE_KEY in your .env.local file and restart the dev server.',
-        hint: 'The dev server must be restarted after adding environment variables. Check terminal for detailed debug info.',
+        error: isProduction
+          ? `Supabase service role key is not configured in ${platform}. Please set SUPABASE_SERVICE_ROLE_KEY in your ${platform} environment variables and redeploy.`
+          : 'Supabase service role key is not configured. Set SUPABASE_SERVICE_ROLE_KEY in your .env.local file and restart the dev server.',
+        hint: isProduction
+          ? `Go to your ${platform} dashboard → Settings → Environment Variables → Add SUPABASE_SERVICE_ROLE_KEY → Redeploy`
+          : 'The dev server must be restarted after adding environment variables. Check terminal for detailed debug info.',
+        platform,
+        isProduction,
         debug: {
           hasUrl: !!SUPABASE_URL,
           hasServiceKey: !!SERVICE_ROLE_KEY,
