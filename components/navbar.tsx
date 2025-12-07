@@ -2,11 +2,22 @@
 
 import Link from 'next/link'
 import { useAuth } from '@/contexts/auth-context'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 export default function Navbar() {
   const { user, userRole, signOut } = useAuth()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+
+  const handleLogout = async () => {
+    try {
+      await signOut()
+      router.push('/login')
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
+  }
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
@@ -32,7 +43,7 @@ export default function Navbar() {
                   Dashboard
                 </Link>
                 <button
-                  onClick={signOut}
+                  onClick={handleLogout}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   Logout
@@ -79,8 +90,8 @@ export default function Navbar() {
                   Dashboard
                 </Link>
                 <button
-                  onClick={() => {
-                    signOut()
+                  onClick={async () => {
+                    await handleLogout()
                     setIsOpen(false)
                   }}
                   className="w-full text-left px-4 py-2 bg-blue-600 text-white rounded"

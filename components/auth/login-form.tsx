@@ -25,11 +25,10 @@ export default function LoginForm() {
     try {
       setLoading(true)
       await signIn(formData.email, formData.password, formData.role)
+      // Navigate immediately - don't wait for all data to load
       router.push(formData.role === 'admin' ? '/admin' : '/dashboard')
-      router.refresh()
     } catch (error: any) {
       setErrors({ submit: error.message || 'Login failed' })
-    } finally {
       setLoading(false)
     }
   }

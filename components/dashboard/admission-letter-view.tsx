@@ -2,9 +2,11 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Download, Printer } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { Download, Printer, CheckCircle } from 'lucide-react'
+import { useRef, useState, useEffect } from 'react'
 import { generateAdmissionLetterPDF } from '@/utils/letter-generator'
+import { useAuth } from '@/contexts/auth-context'
+import { getSupabaseClient } from '@/lib/supabase/client'
 
 interface AdmissionLetterViewProps {
   studentName: string
@@ -17,6 +19,65 @@ interface AdmissionLetterViewProps {
 export default function AdmissionLetterView({ studentName, course, university, date, kcseIndex }: AdmissionLetterViewProps) {
   const letterRef = useRef<HTMLDivElement>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isAccepting, setIsAccepting] = useState(false)
+  const [isAccepted, setIsAccepted] = useState(false)
+  const [placementId, setPlacementId] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (user?.id) {
+      loadPlacement()
+    }
+  }, [user])
+
+  const loadPlacement = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const { data: placement } = await supabase
+        .from('placements')
+        .select('id, status')
+        .eq('student_id', user!.id)
+        .order('placement_date', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (placement) {
+        setPlacementId(placement.id)
+        setIsAccepted(placement.status === 'accepted')
+      }
+    } catch (error) {
+      console.error('Error loading placement:', error)
+    }
+  }
+
+  const handleAcceptAdmission = async () => {
+    if (!placementId) {
+      alert('Placement not found. Please contact support.')
+      return
+    }
+
+    try {
+      setIsAccepting(true)
+      const response = await fetch('/api/placement/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ placementId }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to accept admission')
+      }
+
+      setIsAccepted(true)
+      alert('Admission accepted successfully!')
+    } catch (error: any) {
+      console.error('Error accepting admission:', error)
+      alert(error.message || 'Failed to accept admission. Please try again.')
+    } finally {
+      setIsAccepting(false)
+    }
+  }
 
   const handlePrint = () => {
     const printContent = letterRef.current
@@ -60,6 +121,21 @@ export default function AdmissionLetterView({ studentName, course, university, d
   return (
     <div className="space-y-6 max-w-4xl mx-auto px-4 sm:px-6">
       <div className="flex flex-col sm:flex-row justify-end gap-4 print:hidden">
+        {isAccepted ? (
+          <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium">
+            <CheckCircle className="h-5 w-5" />
+            Admission Accepted
+          </div>
+        ) : (
+          <Button
+            onClick={handleAcceptAdmission}
+            className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
+            disabled={isAccepting || !placementId}
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            {isAccepting ? 'Accepting...' : 'Accept Admission'}
+          </Button>
+        )}
         <Button variant="outline" onClick={handlePrint} className="w-full sm:w-auto">
           <Printer className="mr-2 h-4 w-4" /> Print
         </Button>

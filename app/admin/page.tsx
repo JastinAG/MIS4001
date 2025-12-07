@@ -30,14 +30,14 @@ export default function AdminDashboardPage() {
       setLoading(true)
       const supabase = getSupabaseClient()
 
-      const { data: students, error: studentsError } = await supabase
+      // Get total students count
+      const { count: totalStudentsCount, error: studentsCountError } = await supabase
         .from('students')
-        .select('placement_status')
+        .select('id', { count: 'exact', head: true })
 
-      if (studentsError) throw studentsError
+      if (studentsCountError) throw studentsCountError
 
-      const totalStudents = students?.length || 0
-      const placed = students?.filter((s) => s.placement_status === 'placed').length || 0
+      const totalStudents = totalStudentsCount || 0
 
       const { count: universityCount, error: univError } = await supabase
         .from('universities')
@@ -51,18 +51,55 @@ export default function AdminDashboardPage() {
 
       if (coursesError) throw coursesError
 
-      const { data: placements, error: placementsError } = await supabase
-        .from('placements')
-        .select(
-          `
-          status,
-          universities (
-            name
-          )
-        `,
-        )
+      // Count placed students - check both placements table and students.placement_status
+      // This ensures we count all placed students regardless of how they were placed
+      const [placementsResult, placedStudentsResult] = await Promise.all([
+        supabase
+          .from('placements')
+          .select(
+            `
+            student_id,
+            status,
+            universities (
+              name
+            )
+          `,
+          ),
+        supabase
+          .from('students')
+          .select('id')
+          .eq('placement_status', 'placed'),
+      ])
 
-      if (placementsError) throw placementsError
+      // Log errors but don't throw - we'll use fallback counting
+      if (placementsResult.error) {
+        console.error('Error fetching placements:', placementsResult.error)
+      }
+      if (placedStudentsResult.error) {
+        console.error('Error fetching placed students:', placedStudentsResult.error)
+      }
+
+      const placements = placementsResult.data || []
+      const placedStudents = placedStudentsResult.data || []
+
+      // Count unique placed students from placements table
+      const uniquePlacedFromPlacements = new Set(
+        placements.map((p: any) => p.student_id)
+      )
+
+      // Also include students with placement_status = 'placed'
+      const uniquePlacedFromStatus = new Set(
+        placedStudents.map((s: any) => s.id)
+      )
+
+      // Combine both sets to get total unique placed students
+      // This ensures we count all placed students even if one source fails
+      const allPlacedStudentIds = new Set([
+        ...Array.from(uniquePlacedFromPlacements),
+        ...Array.from(uniquePlacedFromStatus),
+      ])
+
+      const placed = allPlacedStudentIds.size
 
       const univStatsMap = new Map<string, { placed: number; total: number }>()
 

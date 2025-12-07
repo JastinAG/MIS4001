@@ -33,19 +33,44 @@ export async function runPlacementAlgorithm(
           )
 
           if (courseplacements.length < course.intake_capacity) {
-            // Place student
-            await supabase.from('placements').insert({
-              student_id: student.id,
-              course_id: pref.course_id,
-              university_id: course.university_id,
-              placement_date: new Date(),
-              status: 'pending',
-            })
+            // Place student - create placement record
+            const { data: newPlacement, error: placementError } = await supabase
+              .from('placements')
+              .insert({
+                student_id: student.id,
+                course_id: pref.course_id,
+                university_id: course.university_id,
+                placement_date: new Date(),
+                status: 'pending',
+              })
+              .select()
+              .single()
 
+            if (placementError) {
+              console.error('Error creating placement:', placementError)
+              continue
+            }
+
+            // Update student placement status
             await supabase
               .from('students')
               .update({ placement_status: 'placed' })
               .eq('id', student.id)
+
+            // Create admission letter automatically when student is placed
+            if (newPlacement) {
+              const admissionDate = new Date()
+              admissionDate.setMonth(admissionDate.getMonth() + 1) // Set admission date to 1 month from now
+
+              await supabase.from('admission_letters').insert({
+                placement_id: newPlacement.id,
+                student_id: student.id,
+                university_id: course.university_id,
+                course_id: pref.course_id,
+                letter_date: new Date(),
+                admission_date: admissionDate.toISOString().split('T')[0],
+              })
+            }
 
             placedCount++
             placed = true

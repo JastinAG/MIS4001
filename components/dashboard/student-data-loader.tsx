@@ -36,23 +36,28 @@ export default function StudentDataLoader() {
       setError(null)
       const supabase = getSupabaseClient()
 
-      const { data: student, error: studentError } = await supabase
-        .from('students')
-        .select('full_name, kcse_index_number, cluster_score')
-        .eq('id', user!.id)
-        .single()
+      // Fetch student data and grades in parallel for faster loading
+      const [studentResult, gradesResult] = await Promise.all([
+        supabase
+          .from('students')
+          .select('full_name, kcse_index_number, cluster_score')
+          .eq('id', user!.id)
+          .single(),
+        supabase
+          .from('student_clusters')
+          .select('subject, grade')
+          .eq('student_id', user!.id)
+          .order('subject', { ascending: true }),
+      ])
+
+      const { data: student, error: studentError } = studentResult
+      const { data: grades, error: gradesError } = gradesResult
 
       if (studentError || !student) {
         throw new Error(
           'We could not find your academic record. Please contact support or try again later.',
         )
       }
-
-      const { data: grades, error: gradesError } = await supabase
-        .from('student_clusters')
-        .select('subject, grade')
-        .eq('student_id', user!.id)
-        .order('subject', { ascending: true })
 
       if (gradesError || !grades || grades.length === 0) {
         throw new Error('No subject grades found for this account.')

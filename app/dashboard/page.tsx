@@ -23,7 +23,10 @@ function DashboardContent() {
 
   useEffect(() => {
     if (user?.id) {
-      loadStudentInfo()
+      // Load student info in background - don't block render
+      loadStudentInfo().catch((error) => {
+        console.error('Error loading student info:', error)
+      })
     }
   }, [user])
 
@@ -41,6 +44,7 @@ function DashboardContent() {
         setKcseIndex(data.kcse_index_number)
       }
     } catch (error) {
+      // Silently fail - this is non-critical data
       console.error('Error loading student info:', error)
     }
   }

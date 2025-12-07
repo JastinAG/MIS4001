@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<'student' | 'admin' | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchUserRole = useCallback(async (userId: string) => {
+  const fetchUserRole = useCallback(async (userId: string, setLoadingState: boolean = true) => {
     try {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase.from('users').select('role').eq('id', userId).single()
@@ -29,8 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // PGRST116 means no rows returned (user not in users table yet)
         // This is normal for newly created users - default to student
         if (error.code === 'PGRST116') {
-          console.log('User not found in users table, defaulting to student role')
           setUserRole('student')
+          if (setLoadingState) setLoading(false)
           return 'student'
         }
         // Log other errors but don't show empty error objects
@@ -38,14 +38,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('Error fetching user role:', error.message)
         }
         setUserRole('student')
+        if (setLoadingState) setLoading(false)
         return 'student'
       } else if (data) {
         const role = data.role as 'student' | 'admin'
         setUserRole(role)
+        if (setLoadingState) setLoading(false)
         return role
       } else {
         // No data returned, default to student
         setUserRole('student')
+        if (setLoadingState) setLoading(false)
         return 'student'
       }
     } catch (error: any) {
@@ -54,9 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error fetching user role:', error.message)
       }
       setUserRole('student')
+      if (setLoadingState) setLoading(false)
       return 'student'
-    } finally {
-      setLoading(false)
     }
   }, [])
 
@@ -85,12 +87,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const {
           data: { subscription: authSubscription },
-        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (!mounted) return
 
           if (session?.user) {
             setUser(session.user)
-            await fetchUserRole(session.user.id)
+            // Don't block on role fetch - do it in background
+            // This allows immediate navigation while role loads
+            fetchUserRole(session.user.id, false).catch(() => {
+              // Silently fail
+            })
+            // Always set loading to false immediately to allow navigation
+            setLoading(false)
           } else {
             setUser(null)
             setUserRole(null)
@@ -159,16 +167,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error
     }
 
+    // Set user immediately and stop loading for instant navigation
     if (data.user) {
-      const resolvedRole = await fetchUserRole(data.user.id)
-      if (resolvedRole && resolvedRole !== role) {
-        await supabase.auth.signOut()
-        setUser(null)
-        setUserRole(null)
-        throw new Error(
-          `Access denied. This account is registered as ${resolvedRole}, not ${role}.`,
-        )
-      }
+      setUser(data.user)
+      setLoading(false) // Stop loading immediately to allow navigation
+      
+      // Fetch role asynchronously without blocking navigation
+      // Validate role in background - if mismatch, sign out after navigation
+      fetchUserRole(data.user.id, false).then((resolvedRole) => {
+        if (resolvedRole && resolvedRole !== role) {
+          // Role mismatch - sign out
+          supabase.auth.signOut()
+          setUser(null)
+          setUserRole(null)
+          setLoading(true)
+          // Redirect to login with error message
+          window.location.href = '/login?error=role_mismatch'
+        }
+      }).catch(() => {
+        // Silently fail - role will be checked by auth state handler
+      })
     }
   }
 
