@@ -5,9 +5,17 @@ import { calculateClusterScore } from '@/utils/grade-calculator'
 const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xybnqhsqlaaocqibqhbn.supabase.co'
 
-// Get service role key from environment variables only
-// Must be set in .env.local for local development or environment variables for production
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
+// Get service role key from environment variables
+// For local: set in .env.local
+// For production (Netlify/Vercel): set in platform's environment variables
+const SERVICE_ROLE_KEY = 
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 
+  process.env.SUPABASE_KEY ||
+  // Development fallback - only used if env var not set
+  // This allows local development to work while keeping code deployable
+  (process.env.NODE_ENV === 'development' 
+    ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5Ym5xaHNxbGFhb2NxaWJxaGJuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDQ2NTExOCwiZXhwIjoyMDgwMDQxMTE4fQ.x6nE8dxJ2KsmDllZxHlq_A_yfk_pKmtg0jgpSj2IiZU'
+    : undefined)
 
 // Debug logging (remove in production)
 if (process.env.NODE_ENV === 'development') {
@@ -64,12 +72,19 @@ function deriveFullName(email: string) {
     .split(/[._-]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+  
   if (parts.length === 0) {
     return 'Student'
   }
+  
+  // Use the email prefix parts as the name
+  // If single part: use it as the full name
+  // If multiple parts: use first two as first and last name
   if (parts.length === 1) {
-    return `${parts[0]} Mwangi`
+    return parts[0]
   }
+  
+  // Use first two parts as first and last name
   return parts.slice(0, 2).join(' ')
 }
 

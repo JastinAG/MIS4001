@@ -91,80 +91,95 @@ function DashboardContent() {
           </div>
         )
 
+      case 'grades':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Your Grades</h2>
+              <p className="text-slate-600">View your KCSE subject grades and cluster points</p>
+            </div>
+            <StudentDataLoader />
+            {grades.length > 0 ? (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Subject Grades</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
+                  {grades.map((grade, index) => (
+                    <div key={index} className="bg-gradient-to-br from-blue-50 to-slate-50 p-4 rounded-lg text-center border border-slate-200 hover:shadow-md transition-shadow">
+                      <p className="text-sm font-medium text-slate-600 mb-2">{grade.subject}</p>
+                      <p className="text-2xl font-bold text-blue-600">{grade.score}</p>
+                    </div>
+                  ))}
+                </div>
+                {clusterPoints && (
+                  <div className="mt-6 pt-6 border-t border-slate-200 bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-semibold text-slate-700">Total Cluster Points:</span>
+                      <span className="text-3xl font-bold text-blue-600">{clusterPoints.toFixed(1)}</span>
+                    </div>
+                    <p className="text-sm text-slate-500 mt-2">Based on your top 8 subjects</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+                <p className="text-slate-500 mb-4">No grades available yet.</p>
+                <p className="text-sm text-slate-400">Your grades will appear here once they are loaded from your student record.</p>
+              </div>
+            )}
+          </div>
+        )
+
       case 'overview':
       default:
         return (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Dashboard Overview</h2>
+              <p className="text-slate-600">Track your placement journey progress</p>
+            </div>
+            
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              <div className="glass-panel p-6 rounded-xl">
-                <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-slate-500">Placement Status</span>
                   <span className={`text-2xl font-bold ${selectedCourse ? 'text-green-600' : 'text-yellow-600'}`}>
                     {selectedCourse ? 'Placed' : (clusterPoints ? 'In Progress' : 'Pending Grades')}
                   </span>
                 </div>
-                <div className="mt-4 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${selectedCourse ? 'bg-green-500 w-full' : (clusterPoints ? 'bg-yellow-500 w-[60%]' : 'bg-slate-300 w-[10%]')} rounded-full`} />
+                <div className="mt-4 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full ${selectedCourse ? 'bg-green-500 w-full' : (clusterPoints ? 'bg-yellow-500 w-[60%]' : 'bg-slate-300 w-[10%]')} rounded-full transition-all`} />
                 </div>
               </div>
 
-              <div className="glass-panel p-6 rounded-xl">
-                <div className="flex flex-col gap-1">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-slate-500">Cluster Points</span>
                   <span className="text-2xl font-bold text-slate-900">{clusterPoints ? clusterPoints.toFixed(1) : '-'}</span>
                 </div>
                 <p className="mt-4 text-xs text-slate-400">
-                  {clusterPoints ? 'Calculated from your subjects' : 'Input grades to calculate'}
+                  {clusterPoints ? 'Calculated from your subjects' : 'View grades to calculate'}
                 </p>
               </div>
 
-              <div className="glass-panel p-6 rounded-xl">
-                <div className="flex flex-col gap-1">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div className="flex flex-col gap-2">
                   <span className="text-sm font-medium text-slate-500">Next Step</span>
                   <span className="text-lg font-semibold text-blue-600">
-                    {selectedCourse ? 'Download Letter' : (clusterPoints ? 'Select Courses' : 'Enter Grades')}
+                    {selectedCourse ? 'Download Letter' : (clusterPoints ? 'Select Courses' : 'View Grades')}
                   </span>
                 </div>
               </div>
             </div>
-
-            {/* Chart Section */}
-            {grades.length > 0 && (
-              <div className="glass-panel p-6 rounded-xl">
-                <h3 className="text-lg font-semibold mb-6 text-slate-900">Academic Performance</h3>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                      <XAxis dataKey="subject" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#fff', borderColor: '#e2e8f0', borderRadius: '8px', color: '#0f172a' }}
-                        itemStyle={{ color: '#0f172a' }}
-                        cursor={{ fill: '#f1f5f9' }}
-                      />
-                      <Bar dataKey="score" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            )}
           </div>
         )
     }
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Student Dashboard</h1>
-        <p className="text-sm sm:text-base text-slate-500">
-          Manage your placement journey, view grades, and select courses.
-        </p>
-      </div>
-
-      <StudentDataLoader />
+    <div className="space-y-6 sm:space-y-8">
+      {/* Only show StudentDataLoader on overview */}
+      {activeTab === 'overview' && <StudentDataLoader />}
 
       {renderContent()}
     </div>

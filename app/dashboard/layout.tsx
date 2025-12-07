@@ -10,22 +10,36 @@ function DashboardNav() {
   const searchParams = useSearchParams()
   const currentView = searchParams.get('view') || 'overview'
 
-  const isActive = (view: string) => currentView === view ? 'text-foreground font-semibold' : 'hover:text-foreground transition-colors'
+  const navItems = [
+    { view: 'overview', label: 'Overview' },
+    { view: 'grades', label: 'Grades' },
+    { view: 'courses', label: 'Course Selection' },
+    { view: 'admission', label: 'Admission Letters' },
+  ]
 
   return (
-    <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
-      <Link href="/dashboard?view=overview" className={isActive('overview')}>
-        Overview
-      </Link>
-      <Link href="/dashboard?view=grades" className={isActive('grades')}>
-        Grades
-      </Link>
-      <Link href="/dashboard?view=courses" className={isActive('courses')}>
-        Course Selection
-      </Link>
-      <Link href="/dashboard?view=admission" className={isActive('admission')}>
-        Admission Letter
-      </Link>
+    <nav className="w-full flex justify-center items-center">
+      <div className="flex items-center gap-1 sm:gap-2 bg-slate-100 p-1.5 rounded-lg w-full sm:w-auto overflow-x-auto">
+        {navItems.map((item) => {
+          const isActive = currentView === item.view
+          return (
+            <Link
+              key={item.view}
+              href={`/dashboard?view=${item.view}`}
+              className={`
+                px-3 sm:px-6 py-2 sm:py-2.5 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap
+                ${
+                  isActive
+                    ? 'bg-white text-blue-600 shadow-sm font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }
+              `}
+            >
+              {item.label}
+            </Link>
+          )
+        })}
+      </div>
     </nav>
   )
 }
@@ -63,23 +77,24 @@ export default function DashboardLayout({
     <StudentProvider>
       <div className="min-h-screen bg-background text-foreground">
         {/* Top Navigation */}
-        <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <Link href="/dashboard" className="font-semibold text-lg tracking-tight">
-                Placement<span className="text-muted-foreground">System</span>
-              </Link>
+        <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white shadow-sm">
+          <div className="container mx-auto px-4">
+            {/* User info row */}
+            <div className="h-14 flex items-center justify-end">
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-slate-600 hidden sm:block">
+                  {user.email}
+                </div>
+                <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-sm font-semibold text-blue-700">
+                  {user.email?.[0].toUpperCase()}
+                </div>
+              </div>
+            </div>
+            {/* Navigation menu - centered */}
+            <div className="pb-4">
               <Suspense fallback={null}>
                 <DashboardNav />
               </Suspense>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-xs text-muted-foreground hidden sm:block">
-                {user.email}
-              </div>
-              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-medium">
-                {user.email?.[0].toUpperCase()}
-              </div>
             </div>
           </div>
         </header>

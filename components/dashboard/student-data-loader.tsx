@@ -130,7 +130,9 @@ export default function StudentDataLoader() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">Full Name</p>
-            <p className="text-base font-semibold text-slate-900">{studentData.full_name}</p>
+            <p className="text-base font-semibold text-slate-900">
+              {studentData.full_name || user?.email?.split('@')[0] || 'Student'}
+            </p>
           </div>
           <div>
             <p className="text-sm font-medium text-slate-500 mb-1">KCSE Index Number</p>
