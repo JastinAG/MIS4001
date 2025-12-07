@@ -26,7 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.from('users').select('role').eq('id', userId).single()
 
       if (error) {
-        console.error('Error fetching user role:', error)
+        // PGRST116 means no rows returned (user not in users table yet)
+        // This is normal for newly created users - default to student
+        if (error.code === 'PGRST116') {
+          console.log('User not found in users table, defaulting to student role')
+          setUserRole('student')
+          return 'student'
+        }
+        // Log other errors but don't show empty error objects
+        if (error.message) {
+          console.error('Error fetching user role:', error.message)
+        }
         setUserRole('student')
         return 'student'
       } else if (data) {
@@ -34,11 +44,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserRole(role)
         return role
       } else {
+        // No data returned, default to student
         setUserRole('student')
         return 'student'
       }
-    } catch (error) {
-      console.error('Error fetching user role:', error)
+    } catch (error: any) {
+      // Handle unexpected errors gracefully
+      if (error?.message) {
+        console.error('Error fetching user role:', error.message)
+      }
       setUserRole('student')
       return 'student'
     } finally {
