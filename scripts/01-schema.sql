@@ -180,6 +180,13 @@ CREATE POLICY "Students can read own placements" ON placements
     SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
   ));
 
+CREATE POLICY "Students can insert own placements" ON placements
+  FOR INSERT WITH CHECK (student_id = auth.uid());
+
+CREATE POLICY "Students can update own placements" ON placements
+  FOR UPDATE USING (student_id = auth.uid())
+  WITH CHECK (student_id = auth.uid());
+
 CREATE POLICY "Admins can insert placements" ON placements
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
@@ -190,3 +197,6 @@ CREATE POLICY "Students can read own letters" ON admission_letters
   FOR SELECT USING (student_id = auth.uid() OR EXISTS (
     SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin'
   ));
+
+CREATE POLICY "Students can insert own letters" ON admission_letters
+  FOR INSERT WITH CHECK (student_id = auth.uid());
