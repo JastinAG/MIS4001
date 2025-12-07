@@ -14,6 +14,7 @@ interface Course {
   course: string
   min_points: number
   capacity: number
+  available_spaces: number
   location: string
 }
 
@@ -45,32 +46,55 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
       setLoading(true)
       const supabase = getSupabaseClient()
 
-      const { data, error } = await supabase
-        .from('courses')
-        .select(
-          `
-          id,
-          name,
-          min_cluster_score,
-          intake_capacity,
-          universities (
+      // Fetch courses and placements in parallel
+      const [coursesResult, placementsResult] = await Promise.all([
+        supabase
+          .from('courses')
+          .select(
+            `
+            id,
             name,
-            code
+            min_cluster_score,
+            intake_capacity,
+            universities (
+              name,
+              code
+            )
+          `,
           )
-        `,
-        )
-        .order('name')
+          .order('name'),
+        supabase
+          .from('placements')
+          .select('course_id'),
+      ])
 
-      if (error) throw error
+      if (coursesResult.error) throw coursesResult.error
 
-      const formattedCourses: Course[] = (data || []).map((course) => ({
-        id: course.id,
-        university: course.universities?.name || 'Unknown University',
-        course: course.name,
-        min_points: Number(course.min_cluster_score),
-        capacity: course.intake_capacity,
-        location: 'Nairobi',
-      }))
+      // Count placements per course
+      const placementsByCourse = new Map<string, number>()
+      if (placementsResult.data) {
+        placementsResult.data.forEach((placement: any) => {
+          const courseId = placement.course_id
+          placementsByCourse.set(courseId, (placementsByCourse.get(courseId) || 0) + 1)
+        })
+      }
+
+      // Calculate available spaces for each course
+      const formattedCourses: Course[] = (coursesResult.data || []).map((course) => {
+        const totalCapacity = course.intake_capacity
+        const currentPlacements = placementsByCourse.get(course.id) || 0
+        const availableSpaces = Math.max(0, totalCapacity - currentPlacements)
+
+        return {
+          id: course.id,
+          university: course.universities?.name || 'Unknown University',
+          course: course.name,
+          min_points: Number(course.min_cluster_score),
+          capacity: totalCapacity,
+          available_spaces: availableSpaces,
+          location: 'Nairobi',
+        }
+      })
 
       setCourses(formattedCourses)
     } catch (error) {
@@ -242,6 +266,10 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
       }
 
       setIsShortlisting(false)
+      
+      // Reload courses to update available spaces
+      await loadCourses()
+      
       onSelectCourse(course)
     } catch (error: any) {
       console.error('Error applying:', error)
@@ -302,9 +330,15 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
                       <Sparkles className="h-3 w-3 mr-1" /> Recommended
                     </Badge>
                   )}
-                  <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 text-xs">
-                    Eligible
-                  </Badge>
+                  {course.available_spaces > 0 ? (
+                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200 text-xs">
+                      Eligible
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200 text-xs">
+                      Full
+                    </Badge>
+                  )}
                 </div>
               </div>
               <CardTitle className="text-base sm:text-lg font-bold text-slate-900 line-clamp-2 break-words">
@@ -317,16 +351,28 @@ export default function CourseSelection({ clusterPoints, onSelectCourse }: Cours
             <CardContent className="pb-2 sm:pb-3">
               <div className="flex flex-col sm:flex-row justify-between gap-2 text-xs sm:text-sm text-slate-500">
                 <span>Min Points: <span className="font-medium text-slate-900">{course.min_points}</span></span>
-                <span>Capacity: <span className="font-medium text-slate-900">{course.capacity}</span></span>
+                <div className="flex flex-col items-end">
+                  <span>
+                    Available: <span className={`font-medium ${course.available_spaces > 0 ? 'text-green-600' : 'text-red-600'}`}>{course.available_spaces}</span>
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Total: {course.capacity}
+                  </span>
+                </div>
               </div>
             </CardContent>
             <CardFooter className="pt-2 sm:pt-3">
               <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-sm sm:text-base" 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-sm sm:text-base disabled:bg-gray-400 disabled:cursor-not-allowed" 
                 onClick={() => handleApply(course)}
-                disabled={selectedCourseId !== null}
+                disabled={selectedCourseId !== null || course.available_spaces === 0}
               >
-                {selectedCourseId === course.id ? 'Applied' : 'Apply Now'} <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                {selectedCourseId === course.id 
+                  ? 'Applied' 
+                  : course.available_spaces === 0 
+                    ? 'Full' 
+                    : 'Apply Now'} 
+                <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
             </CardFooter>
           </Card>
